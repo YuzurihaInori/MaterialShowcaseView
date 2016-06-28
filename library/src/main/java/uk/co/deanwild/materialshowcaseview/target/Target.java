@@ -5,6 +5,8 @@ import android.graphics.Rect;
 
 
 public interface Target {
+
+    //内部实现接口，不知道干嘛用的 
     Target NONE = new Target() {
         @Override
         public Point getPoint() {

@@ -17,11 +17,14 @@ public class AnimationFactory implements IAnimationFactory{
     private final AccelerateDecelerateInterpolator interpolator;
 
     public AnimationFactory() {
+        //构造一个先加速后减速的插值器
         interpolator = new AccelerateDecelerateInterpolator();
     }
 
     @Override
     public void fadeInView(View target, long duration, final AnimationStartListener listener) {
+
+        //属性动画，效果为淡入，透明度由0到1
         ObjectAnimator oa = ObjectAnimator.ofFloat(target, ALPHA, INVISIBLE, VISIBLE);
         oa.setDuration(duration).addListener(new Animator.AnimatorListener() {
             @Override
@@ -46,6 +49,7 @@ public class AnimationFactory implements IAnimationFactory{
 
     @Override
     public void fadeOutView(View target, long duration, final AnimationEndListener listener) {
+        //属性动画，效果为淡出，透明度由1到0
         ObjectAnimator oa = ObjectAnimator.ofFloat(target, ALPHA, INVISIBLE);
         oa.setDuration(duration).addListener(new Animator.AnimatorListener() {
             @Override
@@ -68,6 +72,8 @@ public class AnimationFactory implements IAnimationFactory{
         oa.start();
     }
 
+
+    //这个方法并没有被用到
     @Override
     public void animateTargetToPoint(MaterialShowcaseView showcaseView, Point point) {
         AnimatorSet set = new AnimatorSet();

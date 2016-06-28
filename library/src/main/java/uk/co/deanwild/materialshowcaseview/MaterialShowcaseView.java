@@ -103,22 +103,29 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
     private void init(Context context) {
         setWillNotDraw(false);
 
-        // create our animation factory
+        //创建一个动画工厂类
         mAnimationFactory = new AnimationFactory();
 
+        // 监听器集合
         mListeners = new ArrayList<>();
 
+        //添加一个view的全局观察者
         // make sure we add a global layout listener so we can adapt to changes
         mLayoutListener = new UpdateOnGlobalLayout();
         getViewTreeObserver().addOnGlobalLayoutListener(mLayoutListener);
 
+        //监听touch事件，目的屏蔽下层事件，以及控制视图消失
         // consume touch events
         setOnTouchListener(this);
 
+        //  遮罩层颜色
         mMaskColour = Color.parseColor(ShowcaseConfig.DEFAULT_MASK_COLOUR);
+
+        //设置本viewgroup不可见
         setVisibility(INVISIBLE);
 
 
+        //动态加载布局，该布局是xml，所以可以任意修改
         View contentView = LayoutInflater.from(getContext()).inflate(R.layout.showcase_content, this, true);
         mContentBox = contentView.findViewById(R.id.content_box);
         mTitleTextView = (TextView) contentView.findViewById(R.id.tv_title);
@@ -143,6 +150,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         if (!mShouldRender) return;
 
         // get current dimensions
+        //获取测量宽高
         final int width = getMeasuredWidth();
         final int height = getMeasuredHeight();
 
@@ -154,8 +162,10 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
 
             if (mBitmap != null) mBitmap.recycle();
 
+            //创建一个bitmap
             mBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
 
+            //画在bitmap上
             mCanvas = new Canvas(mBitmap);
         }
 
@@ -166,7 +176,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         // clear canvas
         mCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
 
-        // draw solid background
+        // draw solid background 画背景
         mCanvas.drawColor(mMaskColour);
 
         // Prepare eraser Paint if needed
@@ -177,7 +187,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
             mEraser.setFlags(Paint.ANTI_ALIAS_FLAG);
         }
 
-        // draw (erase) shape
+        // draw (erase) shape  画shape
         mShape.draw(mCanvas, mEraser, mXPosition, mYPosition, mShapePadding);
 
         // Draw the bitmap on our views  canvas.
@@ -204,10 +214,15 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
 
     @Override
     public boolean onTouch(View v, MotionEvent event) {
+        //是否点击消失
         if (mDismissOnTouch) {
+            //隐藏界面
             hide();
         }
+
+        //view可点击并且点击在view上
         if(mTargetTouchable && mTarget.getBounds().contains((int)event.getX(), (int)event.getY())){
+            //是否点击view消失
             if(mDismissOnTargetTouch){
                 hide();
             }
@@ -264,15 +279,25 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
     public void setTarget(Target target) {
         mTarget = target;
 
+        //根据mDismissButton内是否有text刷新dismiss按钮的状态
         // update dismiss button state
         updateDismissButton();
 
+
+        //判空处理，防止setTarget参数为null导致空指针
+        //正常情况下并不会导致null
+        //这里为null的情况只有是onGlobalLayout调用本方法时导致，也就是mTarget被清除，mTarget为强引用，只有当被类被回收时才会被回收
+        //mTarget也没有地方被置为null
         if (mTarget != null) {
 
             /**
              * If we're on lollipop then make sure we don't draw over the nav bar
              */
+            //mRenderOverNav 这个值应该一直为false，除非在setTarget前调用renderOverNavigationBar或者setConfig，
+            // demo里这2个方法都位于之后，所以，这里第一个值应该可以忽略
             if (!mRenderOverNav && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+
+                //获取底部虚拟键的高度？
                 mBottomMargin = getSoftButtonsBarSizePort((Activity) getContext());
                 FrameLayout.LayoutParams contentLP = (LayoutParams) getLayoutParams();
 
@@ -281,21 +306,31 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
             }
 
             // apply the target position
+            //获取view中心点和矩形范围
             Point targetPoint = mTarget.getPoint();
             Rect targetBounds = mTarget.getBounds();
+            //定位view
             setPosition(targetPoint);
 
             // now figure out whether to put content above or below it
+            //获取该viewgroup测量高
             int height = getMeasuredHeight();
+            //获取该viewgroup中心y
             int midPoint = height / 2;
+            //临时变量，view的中心高
             int yPos = targetPoint.y;
 
+            //圆角为高宽中较大的的一半，就是包含view的一个圆
             int radius = Math.max(targetBounds.height(), targetBounds.width()) / 2;
+
+            //第一次进来时，mShape就是为null
             if (mShape != null) {
+                //创建一个范围大小的shape，矩形则创建一个rect。还未画，draw方法未调用
                 mShape.updateTarget(mTarget);
                 radius = mShape.getHeight() / 2;
             }
 
+            //判断view的位置是否高于中心点，以放置提示内容位置
             if (yPos > midPoint) {
                 // target is in lower half of screen, we'll sit above it
                 mContentTopMargin = 0;
@@ -313,6 +348,8 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
     }
 
     private void applyLayoutParams() {
+
+        //设置提示内容位置，margin参数等
 
         if (mContentBox != null && mContentBox.getLayoutParams() != null) {
             FrameLayout.LayoutParams contentLP = (LayoutParams) mContentBox.getLayoutParams();
@@ -369,6 +406,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
     }
 
     private void setDismissText(CharSequence dismissText) {
+        //设置点击消失 文字内容，设置完需更新下按钮状态
         if (mDismissButton != null) {
             mDismissButton.setText(dismissText);
 
@@ -480,11 +518,14 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
 
     /**
      * REDRAW LISTENER - this ensures we redraw after activity finishes laying out
+     * 整个view的观察者
      */
     private class UpdateOnGlobalLayout implements ViewTreeObserver.OnGlobalLayoutListener {
 
+        //当在一个视图树中全局布局发生改变或者视图树中的某个视图的可视状态发生改变时调用
         @Override
         public void onGlobalLayout() {
+            //已知mTarget应该是ViewTarget
             setTarget(mTarget);
         }
     }
@@ -494,6 +535,8 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
      * BUILDER CLASS
      * Gives us a builder utility class with a fluent API for eaily configuring showcase views
      */
+
+    //建造者模式，好处是方法调用顺序不会乱，真正看代码应该从这里看起
     public static class Builder {
         private static final int CIRCLE_SHAPE = 0;
         private static final int RECTANGLE_SHAPE = 1;
@@ -509,6 +552,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         public Builder(Activity activity) {
             this.activity = activity;
 
+            //创建一个MaterialShowcaseView对象
             showcaseView = new MaterialShowcaseView(activity);
         }
 
@@ -516,6 +560,8 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
          * Set the title text shown on the ShowcaseView.
          */
         public Builder setTarget(View target) {
+            //设置target，这里存在一个问题，target为null时，会空指针异常。未测试，猜测。
+            //可以添加非空注解
             showcaseView.setTarget(new ViewTarget(target));
             return this;
         }
@@ -535,6 +581,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         /**
          * Set the content text shown on the ShowcaseView.
          */
+        //设置提示内容文字
         public Builder setContentText(int resId) {
             return setContentText(activity.getString(resId));
         }
@@ -542,6 +589,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         /**
          * Set the descriptive text shown on the ShowcaseView.
          */
+        //设置提示内容文字
         public Builder setContentText(CharSequence text) {
             showcaseView.setContentText(text);
             return this;
@@ -550,6 +598,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         /**
          * Set the title text shown on the ShowcaseView.
          */
+        //设置提示标题文字
         public Builder setTitleText(int resId) {
             return setTitleText(activity.getString(resId));
         }
@@ -557,6 +606,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         /**
          * Set the descriptive text shown on the ShowcaseView as the title.
          */
+        //设置提示标题文字
         public Builder setTitleText(CharSequence text) {
             showcaseView.setTitleText(text);
             return this;
@@ -567,6 +617,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
          *
          * False by default.
          */
+        //设置view是否可以点击
         public Builder setTargetTouchable(boolean targetTouchable){
             showcaseView.setTargetTouchable(targetTouchable);
             return this;
@@ -577,92 +628,109 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
          *
          * True by default.
          */
+        //设置view点击消失  这里有个问题，view默认不可点击，所以光设置这个true是无效的
         public Builder setDismissOnTargetTouch(boolean dismissOnTargetTouch){
             showcaseView.setDismissOnTargetTouch(dismissOnTargetTouch);
             return this;
         }
 
+        //设置点击消失
         public Builder setDismissOnTouch(boolean dismissOnTouch) {
             showcaseView.setDismissOnTouch(dismissOnTouch);
             return this;
         }
 
+        //设置遮罩层颜色
         public Builder setMaskColour(int maskColour) {
             showcaseView.setMaskColour(maskColour);
             return this;
         }
 
+        //设置标题颜色
         public Builder setTitleTextColor(int textColour) {
             showcaseView.setTitleTextColor(textColour);
             return this;
         }
-
+        //设置内容颜色
         public Builder setContentTextColor(int textColour) {
             showcaseView.setContentTextColor(textColour);
             return this;
         }
 
+        //设置dismiss颜色
         public Builder setDismissTextColor(int textColour) {
             showcaseView.setDismissTextColor(textColour);
             return this;
         }
 
+        //设置加载延时
         public Builder setDelay(int delayInMillis) {
             showcaseView.setDelay(delayInMillis);
             return this;
         }
 
+        //设置动画时长
         public Builder setFadeDuration(int fadeDurationInMillis) {
             showcaseView.setFadeDuration(fadeDurationInMillis);
             return this;
         }
 
+        //设置显示/消失 监听器
         public Builder setListener(IShowcaseListener listener) {
             showcaseView.addShowcaseListener(listener);
             return this;
         }
 
+        //设置保存至sp的key
         public Builder singleUse(String showcaseID) {
             showcaseView.singleUse(showcaseID);
             return this;
         }
 
+        //设置自定义shape
         public Builder setShape(Shape shape) {
             showcaseView.setShape(shape);
             return this;
         }
 
+        //使用圆形shape
         public Builder withCircleShape() {
             shapeType = CIRCLE_SHAPE;
             return this;
         }
 
+        //不使用shape
         public Builder withoutShape() {
             shapeType = NO_SHAPE;
             return this;
         }
 
+        //设置shape的padding
         public Builder setShapePadding(int padding) {
             showcaseView.setShapePadding(padding);
             return this;
         }
 
+        //使用不充满宽的矩形shape
         public Builder withRectangleShape() {
             return withRectangleShape(false);
         }
 
+        //使用充满宽的矩形shape
         public Builder withRectangleShape(boolean fullWidth) {
             this.shapeType = RECTANGLE_SHAPE;
             this.fullWidth = fullWidth;
             return this;
         }
 
+        //是否超过导航栏
         public Builder renderOverNavigationBar() {
             // Note: This only has an effect in Lollipop or above.
             showcaseView.setRenderOverNavigationBar(true);
             return this;
         }
 
+        //构建
         public MaterialShowcaseView build() {
             if (showcaseView.mShape == null) {
                 switch (shapeType) {
@@ -699,10 +767,13 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
     }
 
     public void removeFromWindow() {
+
         if (getParent() != null && getParent() instanceof ViewGroup) {
+            //溢出遮罩层
             ((ViewGroup) getParent()).removeView(this);
         }
 
+        //释放图片
         if (mBitmap != null) {
             mBitmap.recycle();
             mBitmap = null;
@@ -713,9 +784,11 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         mCanvas = null;
         mHandler = null;
 
+        //移除全局监听
         getViewTreeObserver().removeGlobalOnLayoutListener(mLayoutListener);
         mLayoutListener = null;
 
+        //关闭sp
         if (mPrefsManager != null)
             mPrefsManager.close();
 
@@ -736,6 +809,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         /**
          * if we're in single use mode and have already shot our bolt then do nothing
          */
+        //是否只显示一次
         if (mSingleUse) {
             if (mPrefsManager.hasFired()) {
                 return false;
@@ -744,8 +818,10 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
             }
         }
 
+        //添加遮罩层
         ((ViewGroup) activity.getWindow().getDecorView()).addView(this);
 
+        // TODO: 2016/6/28 未知
         setShouldRender(true);
 
         mHandler = new Handler();
@@ -753,15 +829,18 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
             @Override
             public void run() {
 
+                //是否使用动画
                 if (mShouldAnimate) {
                     fadeIn();
                 } else {
                     setVisibility(VISIBLE);
+                    //通知监听器 回调 显示
                     notifyOnDisplayed();
                 }
             }
         }, mDelayInMillis);
 
+        //更新dismiss按钮状态
         updateDismissButton();
 
         return true;
@@ -775,7 +854,9 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
          */
         mWasDismissed = true;
 
+        //是否显示动画
         if (mShouldAnimate) {
+            //淡出
             fadeOut();
         } else {
             removeFromWindow();
@@ -802,12 +883,14 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
             @Override
             public void onAnimationEnd() {
                 setVisibility(INVISIBLE);
+                //移除
                 removeFromWindow();
             }
         });
     }
 
     public void resetSingleUse() {
+        //重置sp
         if (mSingleUse && mPrefsManager != null) mPrefsManager.resetShowcase();
     }
 

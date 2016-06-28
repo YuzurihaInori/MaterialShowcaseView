@@ -27,6 +27,11 @@ public class RectangleShape implements Shape {
         this(bounds, false);
     }
 
+    /**
+     *
+     * @param bounds      view范围
+     * @param fullWidth  宽是否为铺满
+     */
     public RectangleShape(Rect bounds, boolean fullWidth) {
         this.fullWidth = fullWidth;
         height = bounds.height();
